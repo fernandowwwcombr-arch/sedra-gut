@@ -108,14 +108,20 @@ def injetar_globais():
     nome_empresa = Configuracao.get("nome_empresa", "SEDRA GUT")
     # Categorias pendentes (para badge no ícone de config)
     pendentes_cat = 0
-    if current_user.is_authenticated and current_user.eh_admin:
-        pendentes_cat = Categoria.query.filter_by(ativa=False).count()
+    atividades = []
+    if current_user.is_authenticated:
+        if current_user.eh_admin:
+            pendentes_cat = Categoria.query.filter_by(ativa=False).count()
+        atividades = (Atividade.query
+                      .order_by(Atividade.criado_em.desc())
+                      .limit(20).all())
     from datetime import date
     return dict(
         logo_filename=logo,
         nome_empresa=nome_empresa,
         pendentes_cat=pendentes_cat,
-        hoje=date.today()
+        hoje=date.today(),
+        atividades=atividades
     )
 
 
@@ -290,6 +296,19 @@ def editar_tarefa(id):
             flash("Apenas administradores podem alterar o status da tarefa.", "warning")
             novo_status = tarefa.status
 
+        # Captura valores anteriores antes de qualquer alteração
+        anterior = {
+            "titulo":      tarefa.titulo,
+            "descricao":   tarefa.descricao,
+            "responsavel": tarefa.responsavel,
+            "categoria":   tarefa.categoria,
+            "status":      tarefa.status,
+            "prazo":       tarefa.prazo.strftime("%d/%m/%Y") if tarefa.prazo else "—",
+            "gravidade":   tarefa.gravidade,
+            "urgencia":    tarefa.urgencia,
+            "tendencia":   tarefa.tendencia,
+        }
+
         tarefa.titulo      = request.form.get("titulo", tarefa.titulo).strip()
         tarefa.descricao   = request.form.get("descricao", "").strip()
         tarefa.responsavel = request.form.get("responsavel", "").strip()
@@ -315,9 +334,23 @@ def editar_tarefa(id):
 
         tarefa.prioridade    = tarefa.gravidade * tarefa.urgencia * tarefa.tendencia
         tarefa.atualizado_em = datetime.utcnow()
-        partes = [f'Status: {novo_status}'] if novo_status != tarefa.status else []
-        partes.append(f'GUT: {tarefa.gravidade}×{tarefa.urgencia}×{tarefa.tendencia} = {tarefa.prioridade}')
-        registrar_historico(tarefa.id, 'Tarefa editada — ' + ' | '.join(partes))
+
+        # Detecta o que mudou e monta o log do histórico
+        novo_prazo = tarefa.prazo.strftime("%d/%m/%Y") if tarefa.prazo else "—"
+        mudancas = []
+        if tarefa.titulo      != anterior["titulo"]:      mudancas.append(f'Título: "{anterior["titulo"]}" → "{tarefa.titulo}"')
+        if tarefa.descricao   != anterior["descricao"]:   mudancas.append('Descrição alterada')
+        if tarefa.responsavel != anterior["responsavel"]: mudancas.append(f'Responsável: {anterior["responsavel"] or "—"} → {tarefa.responsavel or "—"}')
+        if tarefa.categoria   != anterior["categoria"]:   mudancas.append(f'Categoria: {anterior["categoria"]} → {tarefa.categoria}')
+        if tarefa.status      != anterior["status"]:      mudancas.append(f'Status: {anterior["status"]} → {tarefa.status}')
+        if novo_prazo         != anterior["prazo"]:       mudancas.append(f'Prazo: {anterior["prazo"]} → {novo_prazo}')
+        gut_anterior = f'{anterior["gravidade"]}×{anterior["urgencia"]}×{anterior["tendencia"]}'
+        gut_novo     = f'{tarefa.gravidade}×{tarefa.urgencia}×{tarefa.tendencia}'
+        if gut_novo != gut_anterior:
+            mudancas.append(f'GUT: {gut_anterior} → {gut_novo} = {tarefa.prioridade}')
+
+        descricao_hist = ('Tarefa editada — ' + ' | '.join(mudancas)) if mudancas else 'Tarefa salva sem alterações'
+        registrar_historico(tarefa.id, descricao_hist)
         db.session.commit()
         registrar_atividade(f'Tarefa editada: "{tarefa.titulo}"')
         flash("Tarefa atualizada!", "success")
