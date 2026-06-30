@@ -18,11 +18,16 @@ from functools import wraps
 
 # ── Configuração ───────────────────────────────────────────────
 app = Flask(__name__)
-app.secret_key = "sedra_gut_chave_secreta_2026"
+app.secret_key = os.environ.get("SECRET_KEY", "sedra_gut_chave_secreta_2026")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# PostgreSQL na nuvem (Railway define DATABASE_URL), SQLite localmente
+_db_url = os.environ.get("DATABASE_URL", "")
+if _db_url.startswith("postgres://"):
+    _db_url = _db_url.replace("postgres://", "postgresql://", 1)
 app.config["SQLALCHEMY_DATABASE_URI"] = (
-    "sqlite:///" + os.path.join(BASE_DIR, "instance", "sedra_gut.db")
+    _db_url or "sqlite:///" + os.path.join(BASE_DIR, "instance", "sedra_gut.db")
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["UPLOAD_FOLDER"] = os.path.join(BASE_DIR, "static", "uploads")
