@@ -290,6 +290,7 @@ def editar_tarefa(id):
             flash("Apenas administradores podem alterar o status da tarefa.", "warning")
             novo_status = tarefa.status
 
+        status_anterior = tarefa.status  # salva antes de sobrescrever
         tarefa.titulo      = request.form.get("titulo", tarefa.titulo).strip()
         tarefa.descricao   = request.form.get("descricao", "").strip()
         tarefa.responsavel = request.form.get("responsavel", "").strip()
@@ -315,9 +316,11 @@ def editar_tarefa(id):
 
         tarefa.prioridade    = tarefa.gravidade * tarefa.urgencia * tarefa.tendencia
         tarefa.atualizado_em = datetime.utcnow()
-        partes = [f'Status: {novo_status}'] if novo_status != tarefa.status else []
+        partes = []
+        if novo_status != status_anterior:
+            partes.append(f'Status: {status_anterior} → {novo_status}')
         partes.append(f'GUT: {tarefa.gravidade}×{tarefa.urgencia}×{tarefa.tendencia} = {tarefa.prioridade}')
-        registrar_historico(tarefa.id, 'Tarefa editada — ' + ' | '.join(partes))
+        registrar_historico(tarefa.id, 'Editada — ' + ' | '.join(partes))
         db.session.commit()
         registrar_atividade(f'Tarefa editada: "{tarefa.titulo}"')
         flash("Tarefa atualizada!", "success")
