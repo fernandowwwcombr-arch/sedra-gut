@@ -1,0 +1,23 @@
+# Banco de dados (dados reais não devem ser versionados)
+instance/
+*.db
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+
+# Uploads de usuários
+static/uploads/
+
+# IDEs
+.vscode/
+.idea/
+
+# Sistema
+.DS_Store
+Thumbs.db
