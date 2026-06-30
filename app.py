@@ -224,7 +224,7 @@ def dashboard():
                   .all())
     hoje = date.today()
     usuarios = Usuario.query.filter_by(ativo=True).order_by(Usuario.nome).all()
-    return render_template('dashboard.html', tarefas=tarefas, categorias=categorias, hoje=hoje, usuarios=usuarios)
+    return render_template('dashboard.html', tarefas=tarefas, categorias=categorias, hoje=hoje, usuarios=usuarios, atividades=atividades)
   
 @app.route("/tarefa/nova", methods=["POST"])
 @login_required
