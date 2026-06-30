@@ -29,3 +29,6 @@ jobs:
               db.create_all()
           print("App inicializado com sucesso!")
           EOF
+
+      - name: Rodar testes automáticos
+        run: pytest tests/ -v
