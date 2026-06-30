@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block titulo %}Categorias — SEDRA GUT{% endblock %}
+{% block page_title %}🏷️ Gerenciar Categorias{% endblock %}
+{% block page_sub %}Ative, aprove e exclua categorias de tarefas{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('configuracoes') }}" class="btn btn-secondary">← Voltar</a>
+{% endblock %}
+
+{% block conteudo %}
+
+<!-- Nova categoria -->
+<div class="card-section">
+    <h3 class="section-title">Adicionar Nova Categoria</h3>
+    <form method="POST" action="{{ url_for('nova_categoria') }}" class="inline-form">
+        <input type="text" name="nome" placeholder="Nome da categoria" required>
+        <button type="submit" class="btn btn-primary">Adicionar</button>
+    </form>
+</div>
+
+<!-- Pendentes de aprovação -->
+{% if pendentes %}
+<div class="card-section">
+    <h3 class="section-title">⏳ Aguardando Aprovação ({{ pendentes|length }})</h3>
+    <table class="gut-table">
+        <thead><tr><th>Nome</th><th>Solicitado por</th><th>Data</th><th class="center">Ações</th></tr></thead>
+        <tbody>
+        {% for cat in pendentes %}
+        <tr>
+            <td><strong>{{ cat.nome }}</strong></td>
+            <td>{{ cat.criado_por }}</td>
+            <td>{{ cat.criado_em.strftime('%d/%m/%Y') }}</td>
+            <td class="center">
+                <form method="POST" action="{{ url_for('aprovar_categoria', id=cat.id) }}" style="display:inline">
+                    <button type="submit" class="btn btn-primary btn-sm">✅ Aprovar</button>
+                </form>
+                <form method="POST" action="{{ url_for('excluir_categoria', id=cat.id) }}"
+                      style="display:inline"
+                      onsubmit="return confirm('Recusar e excluir \'{{ cat.nome }}\'?')">
+                    <button type="submit" class="btn btn-secondary btn-sm">❌ Recusar</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Categorias ativas -->
+<div class="card-section">
+    <h3 class="section-title">✅ Categorias Ativas ({{ ativas|length }})</h3>
+    <table class="gut-table">
+        <thead><tr><th>Nome</th><th>Criado por</th><th>Data</th><th class="center">Ações</th></tr></thead>
+        <tbody>
+        {% for cat in ativas %}
+        <tr>
+            <td><strong>{{ cat.nome }}</strong></td>
+            <td>{{ cat.criado_por }}</td>
+            <td>{{ cat.criado_em.strftime('%d/%m/%Y') }}</td>
+            <td class="center">
+                <form method="POST" action="{{ url_for('excluir_categoria', id=cat.id) }}"
+                      style="display:inline"
+                      onsubmit="return confirm('Excluir a categoria \'{{ cat.nome }}\'?')">
+                    <button type="submit" class="btn-icon" title="Excluir">🗑️</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block titulo %}SEDRA GUT{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="app-body">
+<div class="app-layout">
+
+    <!-- ══ SIDEBAR ══════════════════════════════════════════ -->
+    <aside class="sidebar" id="sidebar">
+
+        <div class="sidebar-logo">
+            {% if logo_filename %}
+                <img src="{{ url_for('static', filename='uploads/' + logo_filename) }}"
+                     alt="Logo" class="sidebar-logo-img">
+            {% else %}
+                <span class="logo-icon">⊕</span>
+            {% endif %}
+            <div>
+                <span class="logo-title">{{ nome_empresa }}</span>
+                <span class="logo-version">V1.0626</span>
+            </div>
+        </div>
+
+        <div class="sidebar-user">
+            <div class="user-avatar">{{ current_user.nome[0].upper() }}</div>
+            <div class="user-info">
+                <span class="user-name">{{ current_user.nome }}</span>
+                <span class="user-perfil perfil-{{ current_user.perfil }}">
+                    {{ current_user.perfil | capitalize }}
+                </span>
+            </div>
+        </div>
+
+        {% block sidebar_stats %}{% endblock %}
+
+        <div class="sidebar-section">
+            <h3 class="sidebar-section-title">📋 Atividades Recentes</h3>
+            <div class="activity-list">
+                {% set atividades = atividades if atividades is defined else [] %}
+                {% if atividades %}
+                    {% for a in atividades %}
+                    <div class="activity-item">
+                        <div class="activity-avatar">{{ a.usuario_nome[0].upper() if a.usuario_nome else '?' }}</div>
+                        <div class="activity-content">
+                            <p class="activity-desc">{{ a.descricao }}</p>
+                            <span class="activity-meta">{{ a.usuario_nome }} · {{ a.tempo_relativo() }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="activity-empty">Nenhuma atividade ainda.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <a href="{{ url_for('logout') }}" class="btn-logout">↩ Sair do sistema</a>
+        </div>
+    </aside>
+
+    <!-- ══ CONTEÚDO PRINCIPAL ════════════════════════════════ -->
+    <main class="main-content">
+
+        <header class="page-header">
+            <div class="header-left">
+                <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+                <div>
+                    <h2 class="page-title">{% block page_title %}{% endblock %}</h2>
+                    <p class="page-sub">{% block page_sub %}{% endblock %}</p>
+                </div>
+            </div>
+            <div class="header-right">
+                {% block header_actions %}{% endblock %}
+                <!-- Engrenagem de configurações — só admin vê -->
+                {% if current_user.is_authenticated and current_user.eh_admin %}
+                <a href="{{ url_for('configuracoes') }}" class="btn-config" title="Configurações">
+                    ⚙️
+                    {% if pendentes_cat > 0 %}
+                    <span class="config-badge">{{ pendentes_cat }}</span>
+                    {% endif %}
+                </a>
+                {% endif %}
+            </div>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="alerts-container">
+                {% for cat, msg in messages %}
+                <div class="alert alert-{{ cat }}">{{ msg }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block conteudo %}{% endblock %}
+
+    </main>
+</div>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

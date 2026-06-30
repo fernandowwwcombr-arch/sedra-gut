@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block titulo %}Usuários — SEDRA GUT{% endblock %}
+{% block page_title %}👥 Gerenciar Usuários{% endblock %}
+{% block page_sub %}Edite perfis e permissões de acesso{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('cadastro') }}" class="btn btn-primary">+ Novo Usuário</a>
+<a href="{{ url_for('configuracoes') }}" class="btn btn-secondary">← Voltar</a>
+{% endblock %}
+
+{% block conteudo %}
+<div class="table-wrapper">
+<table class="gut-table">
+    <thead>
+        <tr>
+            <th>Nome</th><th>E-mail</th><th>Perfil</th>
+            <th class="center">Situação</th><th class="center">Criado em</th>
+            <th class="center">Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for u in usuarios %}
+    <tr>
+        <td><strong>{{ u.nome }}</strong> {% if u.id == current_user.id %}<span class="badge badge-info">você</span>{% endif %}</td>
+        <td>{{ u.email }}</td>
+        <td><span class="perfil-badge perfil-{{ u.perfil }}">{{ u.perfil|capitalize }}</span></td>
+        <td class="center">
+            <span class="status-pill {{ 'status-em-andamento' if u.ativo else 'status-concluída' }}">
+                {{ 'Ativo' if u.ativo else 'Inativo' }}
+            </span>
+        </td>
+        <td class="center">{{ u.criado_em.strftime('%d/%m/%Y') }}</td>
+        <td class="center">
+            <button class="btn btn-secondary btn-sm"
+                    onclick="abrirModalEditarUser({{ u.id }}, '{{ u.nome }}', '{{ u.email }}', '{{ u.perfil }}', {{ '1' if u.ativo else '0' }})">
+                ✏️ Editar
+            </button>
+            <button class="btn btn-secondary btn-sm"
+                    onclick="abrirModalSenha({{ u.id }}, '{{ u.nome }}')">
+                🔑 Senha
+            </button>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<!-- Modal Editar Usuário -->
+<div class="modal-overlay" id="modal-editar-user" onclick="fecharModal('modal-editar-user')">
+<div class="modal-box modal-sm" onclick="event.stopPropagation()">
+    <div class="modal-header">
+        <h3>✏️ Editar Usuário</h3>
+        <button class="modal-close" onclick="fecharModal('modal-editar-user')">✕</button>
+    </div>
+    <form method="POST" id="form-editar-user" action="">
+        <div class="form-group">
+            <label>Nome</label>
+            <input type="text" name="nome" id="eu-nome" required>
+        </div>
+        <div class="form-group">
+            <label>Perfil de Acesso</label>
+            <select name="perfil" id="eu-perfil">
+                <option value="administrador">Administrador — acesso total</option>
+                <option value="operador">Operador — cria e edita suas tarefas</option>
+                <option value="visitante">Visitante — só visualiza</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Situação</label>
+            <select name="ativo" id="eu-ativo">
+                <option value="1">Ativo</option>
+                <option value="0">Inativo (bloqueia o acesso)</option>
+            </select>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="fecharModal('modal-editar-user')">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+    </form>
+</div>
+</div>
+
+<!-- Modal Redefinir Senha -->
+<div class="modal-overlay" id="modal-senha" onclick="fecharModal('modal-senha')">
+<div class="modal-box modal-sm" onclick="event.stopPropagation()">
+    <div class="modal-header">
+        <h3>🔑 Redefinir Senha</h3>
+        <button class="modal-close" onclick="fecharModal('modal-senha')">✕</button>
+    </div>
+    <form method="POST" id="form-senha" action="">
+        <p id="senha-usuario-nome" style="margin-bottom:14px;color:var(--text-muted)"></p>
+        <div class="form-group">
+            <label>Nova Senha (mínimo 6 caracteres)</label>
+            <input type="password" name="nova_senha" required minlength="6" placeholder="••••••••">
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="fecharModal('modal-senha')">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Redefinir</button>
+        </div>
+    </form>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function abrirModalEditarUser(id, nome, email, perfil, ativo) {
+    document.getElementById('eu-nome').value   = nome;
+    document.getElementById('eu-perfil').value = perfil;
+    document.getElementById('eu-ativo').value  = String(ativo);
+    document.getElementById('form-editar-user').action = `/configuracoes/usuarios/${id}/editar`;
+    abrirModal('modal-editar-user');
+}
+function abrirModalSenha(id, nome) {
+    document.getElementById('senha-usuario-nome').textContent = `Usuário: ${nome}`;
+    document.getElementById('form-senha').action = `/configuracoes/usuarios/${id}/redefinir-senha`;
+    abrirModal('modal-senha');
+}
+</script>
+{% endblock %}

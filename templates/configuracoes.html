@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block titulo %}Configurações — SEDRA GUT{% endblock %}
+{% block page_title %}⚙️ Configurações{% endblock %}
+{% block page_sub %}Gerencie usuários, categorias e aparência do sistema{% endblock %}
+
+{% block conteudo %}
+<div class="config-grid">
+
+    <a href="{{ url_for('config_usuarios') }}" class="config-card">
+        <div class="config-card-icon">👥</div>
+        <div>
+            <h3>Usuários</h3>
+            <p>Editar perfis, ativar/desativar contas e redefinir senhas</p>
+        </div>
+        <span class="config-card-arrow">→</span>
+    </a>
+
+    <a href="{{ url_for('config_categorias') }}" class="config-card">
+        <div class="config-card-icon">🏷️</div>
+        <div>
+            <h3>Categorias
+                {% if pendentes_cat > 0 %}
+                <span class="badge badge-warning">{{ pendentes_cat }} pendente(s)</span>
+                {% endif %}
+            </h3>
+            <p>Aprovar, ativar e desativar categorias de tarefas</p>
+        </div>
+        <span class="config-card-arrow">→</span>
+    </a>
+
+    <a href="{{ url_for('config_aparencia') }}" class="config-card">
+        <div class="config-card-icon">🎨</div>
+        <div>
+            <h3>Aparência</h3>
+            <p>Logo da empresa e nome exibido no sistema</p>
+        </div>
+        <span class="config-card-arrow">→</span>
+    </a>
+
+</div>
+{% endblock %}

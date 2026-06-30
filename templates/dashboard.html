@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block titulo %}SEDRA GUT — Dashboard{% endblock %}
+{% block page_title %}Matriz GUT{% endblock %}
+{% block page_sub %}Priorização por Gravidade × Urgência × Tendência{% endblock %}
+
+{% block sidebar_stats %}
+<div class="sidebar-stats">
+    {% set total     = tarefas|length %}
+    {% set pendentes = tarefas|selectattr('status','equalto','Pendente')|list|length %}
+    {% set concluidas= tarefas|selectattr('status','equalto','Concluída')|list|length %}
+    <div class="stat-item"><span class="stat-num">{{ total }}</span><span class="stat-lbl">Total</span></div>
+    <div class="stat-item stat-warning"><span class="stat-num">{{ pendentes }}</span><span class="stat-lbl">Pendentes</span></div>
+    <div class="stat-item stat-success"><span class="stat-num">{{ concluidas }}</span><span class="stat-lbl">Concluídas</span></div>
+</div>
+{% endblock %}
+
+{% block header_actions %}
+{% if not current_user.eh_visitante %}
+<button class="btn btn-primary" onclick="abrirModalNova()">+ Nova Tarefa</button>
+{% endif %}
+{% endblock %}
+
+{% block conteudo %}
+
+<!-- Aviso de perfil para visitante -->
+{% if current_user.eh_visitante %}
+<div class="alert alert-info" style="margin:12px 28px 0">
+    👁️ Você está no modo <strong>Visitante</strong> — apenas visualização.
+</div>
+{% endif %}
+
+<!-- Legenda -->
+<div class="legend-bar">
+    <span class="legend-item">🔴 Crítica (75–125)</span>
+    <span class="legend-item">🟡 Alta (40–74)</span>
+    <span class="legend-item">🔵 Média (15–39)</span>
+    <span class="legend-item">⚪ Baixa (1–14)</span>
+</div>
+
+<!-- Filtros -->
+<div class="filter-bar">
+    <select id="filtro-status" onchange="filtrarTabela()">
+        <option value="">Todos os status</option>
+        <option value="Pendente">Pendente</option>
+        <option value="Em andamento">Em andamento</option>
+        <option value="Concluída">Concluída</option>
+    </select>
+    <select id="filtro-categoria" onchange="filtrarTabela()">
+        <option value="">Todas as categorias</option>
+        {% for cat in categorias %}
+        <option value="{{ cat.nome }}">{{ cat.nome }}</option>
+        {% endfor %}
+    </select>
+    <input type="text" id="filtro-busca" placeholder="🔍 Buscar tarefa..." oninput="filtrarTabela()">
+</div>
+
+{% if tarefas %}
+<div class="table-wrapper">
+<table class="gut-table" id="gut-table">
+    <thead>
+        <tr>
+            <th>#</th><th>Tarefa</th><th>Categoria</th><th>Responsável</th>
+            <th class="center">G</th><th class="center">U</th><th class="center">T</th>
+            <th class="center">GUT</th><th class="center">Nível</th>
+            <th class="center">Status</th><th class="center">Prazo</th>
+            {% if not current_user.eh_visitante %}<th class="center">Ações</th>{% endif %}
+        </tr>
+    </thead>
+    <tbody>
+    {% for tarefa in tarefas %}
+    {% set nivel, cor = tarefa.nivel_prioridade() %}
+    <tr class="tarefa-row {{ 'row-concluida' if tarefa.status == 'Concluída' }}"
+        data-status="{{ tarefa.status }}" data-categoria="{{ tarefa.categoria }}">
+
+        <td class="td-rank">{{ loop.index }}</td>
+
+        <td class="td-titulo">
+            <strong>{{ tarefa.titulo }}</strong>
+            {% if tarefa.descricao %}
+            <p class="td-desc">{{ tarefa.descricao[:80] }}{% if tarefa.descricao|length > 80 %}…{% endif %}</p>
+            {% endif %}
+            <span class="td-meta">Por {{ tarefa.criado_por }} · {{ tarefa.criado_em.strftime('%d/%m/%Y') }}</span>
+        </td>
+
+        <td><span class="badge-categoria">{{ tarefa.categoria }}</span></td>
+        <td class="td-resp">{{ tarefa.responsavel or '—' }}</td>
+        <td class="center"><span class="nota nota-g">{{ tarefa.gravidade }}</span></td>
+        <td class="center"><span class="nota nota-u">{{ tarefa.urgencia }}</span></td>
+        <td class="center"><span class="nota nota-t">{{ tarefa.tendencia }}</span></td>
+        <td class="center"><span class="gut-score gut-{{ cor }}">{{ tarefa.prioridade }}</span></td>
+        <td class="center"><span class="badge badge-{{ cor }}">{{ nivel }}</span></td>
+        <td class="center">
+            <span class="status-pill status-{{ tarefa.status|lower|replace(' ','-') }}">
+                {{ tarefa.status }}
+            </span>
+        </td>
+        <td class="center td-prazo">
+            {% if tarefa.prazo %}
+                <span class="prazo {{ 'prazo-vencido' if tarefa.prazo < hoje else '' }}">
+                    {{ tarefa.prazo.strftime('%d/%m/%Y') }}
+                </span>
+            {% else %}—{% endif %}
+        </td>
+
+        {% if not current_user.eh_visitante %}
+        <td class="center td-actions">
+            {# Editar: admin edita tudo; operador só edita o que criou #}
+            {% if current_user.eh_admin or tarefa.criado_por_id == current_user.id %}
+            <button class="btn-icon" onclick="abrirModalEditar({{ tarefa.id }})" title="Editar">✏️</button>
+            {% endif %}
+
+            {# Iniciar: só admin #}
+            {% if current_user.eh_admin and tarefa.status == 'Pendente' %}
+            <form method="POST" action="{{ url_for('iniciar_tarefa', id=tarefa.id) }}" style="display:inline">
+                <button type="submit" class="btn-icon" title="Iniciar tarefa">▶️</button>
+            </form>
+            {% endif %}
+
+            {# Concluir: só admin #}
+            {% if current_user.eh_admin and tarefa.status == 'Em andamento' %}
+            <form method="POST" action="{{ url_for('concluir_tarefa', id=tarefa.id) }}" style="display:inline">
+                <button type="submit" class="btn-icon" title="Concluir">✅</button>
+            </form>
+            {% endif %}
+
+            {# Excluir: admin exclui tudo; operador só o que criou #}
+            {% if current_user.eh_admin or tarefa.criado_por_id == current_user.id %}
+            <form method="POST" action="{{ url_for('excluir_tarefa', id=tarefa.id) }}"
+                  style="display:inline"
+                  onsubmit="return confirm('Excluir \'{{ tarefa.titulo }}\'?')">
+                <button type="submit" class="btn-icon" title="Excluir">🗑️</button>
+            </form>
+            {% endif %}
+        </td>
+        {% endif %}
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">📋</div>
+    <h3>Nenhuma tarefa cadastrada ainda</h3>
+    {% if not current_user.eh_visitante %}
+    <p>Clique em <strong>+ Nova Tarefa</strong> para começar.</p>
+    <button class="btn btn-primary" onclick="abrirModalNova()">+ Nova Tarefa</button>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- ══ MODAL: Nova Tarefa ══════════════════════════════════ -->
+{% if not current_user.eh_visitante %}
+<div class="modal-overlay" id="modal-nova" onclick="fecharModal('modal-nova')">
+<div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-header">
+        <h3>➕ Nova Tarefa</h3>
+        <button class="modal-close" onclick="fecharModal('modal-nova')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('nova_tarefa') }}">
+        <div class="form-row">
+            <div class="form-group flex-2">
+                <label>Título *</label>
+                <input type="text" name="titulo" required placeholder="Descreva a tarefa">
+            </div>
+            <div class="form-group">
+                <label>Categoria</label>
+                <select name="categoria">
+                    {% for cat in categorias %}
+                    <option value="{{ cat.nome }}">{{ cat.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Descrição</label>
+            <textarea name="descricao" rows="2" placeholder="Detalhes (opcional)"></textarea>
+        </div>
+        <div class="form-row">
+            <div class="form-group flex-2">
+                <label>Responsável</label>
+                <select name="responsavel">
+                    <option value="">— Selecionar responsável —</option>
+                    {% for u in usuarios %}
+                    <option value="{{ u.nome }}">{{ u.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Prazo</label>
+                <input type="date" name="prazo">
+            </div>
+        </div>
+        <div class="gut-inputs">
+            {% for campo, letra, cor_class, dica in [
+                ('gravidade','G','gut-g','Impacto se não resolver'),
+                ('urgencia','U','gut-u','Prazo para agir'),
+                ('tendencia','T','gut-t','Piora sem ação')] %}
+            <div class="gut-input-group">
+                <label>
+                    <span class="gut-letter {{ cor_class }}">{{ letra }}</span>
+                    {{ campo|capitalize }}
+                    <span class="gut-tip">{{ dica }}</span>
+                </label>
+                <div class="nota-selector" data-name="{{ campo }}">
+                    {% for n in [1,2,3,4,5] %}
+                    <button type="button" class="nota-btn {% if n==3 %}selected{% endif %}" data-val="{{ n }}">{{ n }}</button>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="{{ campo }}" value="3">
+            </div>
+            {% endfor %}
+        </div>
+        <div class="gut-preview">
+            <span>Prioridade calculada:</span>
+            <strong id="gut-preview-valor">27</strong>
+            <span id="gut-preview-nivel" class="badge badge-info">Média</span>
+        </div>
+
+        {% if current_user.eh_operador %}
+        <p class="form-hint-info">💡 Após criar, um administrador precisará iniciar a tarefa.</p>
+        {% endif %}
+
+        <!-- Solicitar nova categoria -->
+        <details class="solicitar-cat">
+            <summary>+ Solicitar nova categoria</summary>
+            <div class="form-row" style="margin-top:10px">
+                <div class="form-group flex-2">
+                    <input type="text" id="nova-cat-nome" placeholder="Nome da categoria">
+                </div>
+                <div class="form-group">
+                    <button type="button" class="btn btn-secondary" onclick="solicitarCategoria()">Solicitar</button>
+                </div>
+            </div>
+        </details>
+
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="fecharModal('modal-nova')">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar Tarefa</button>
+        </div>
+    </form>
+</div>
+</div>
+
+<!-- ══ MODAL: Editar Tarefa ══════════════════════════════════ -->
+<div class="modal-overlay" id="modal-editar" onclick="fecharModal('modal-editar')">
+<div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-header">
+        <h3>✏️ Editar Tarefa</h3>
+        <button class="modal-close" onclick="fecharModal('modal-editar')">✕</button>
+    </div>
+    <form method="POST" id="form-editar" action="">
+        <div class="form-row">
+            <div class="form-group flex-2">
+                <label>Título *</label>
+                <input type="text" name="titulo" id="edit-titulo" required>
+            </div>
+            <div class="form-group">
+                <label>Categoria</label>
+                <select name="categoria" id="edit-categoria">
+                    {% for cat in categorias %}
+                    <option value="{{ cat.nome }}">{{ cat.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Descrição</label>
+            <textarea name="descricao" id="edit-descricao" rows="2"></textarea>
+        </div>
+        <div class="form-row">
+            <div class="form-group flex-2">
+                <label>Responsável</label>
+                <select name="responsavel" id="edit-responsavel">
+                    <option value="">— Selecionar responsável —</option>
+                    {% for u in usuarios %}
+                    <option value="{{ u.nome }}">{{ u.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Prazo</label>
+                <input type="date" name="prazo" id="edit-prazo">
+            </div>
+        </div>
+
+        <!-- Status — só admin vê e pode mudar -->
+        {% if current_user.eh_admin %}
+        <div class="form-group">
+            <label>Status</label>
+            <select name="status" id="edit-status">
+                <option value="Pendente">Pendente</option>
+                <option value="Em andamento">Em andamento</option>
+                <option value="Concluída">Concluída</option>
+            </select>
+        </div>
+        {% endif %}
+
+        <div class="gut-inputs" id="edit-gut-inputs">
+            {% for campo, letra, cor_class, dica in [
+                ('gravidade','G','gut-g','Impacto se não resolver'),
+                ('urgencia','U','gut-u','Prazo para agir'),
+                ('tendencia','T','gut-t','Piora sem ação')] %}
+            <div class="gut-input-group">
+                <label>
+                    <span class="gut-letter {{ cor_class }}">{{ letra }}</span>
+                    {{ campo|capitalize }}
+                    <span class="gut-tip">{{ dica }}</span>
+                </label>
+                <div class="nota-selector" data-name="{{ campo }}">
+                    {% for n in [1,2,3,4,5] %}
+                    <button type="button" class="nota-btn" data-val="{{ n }}">{{ n }}</button>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="{{ campo }}" value="1">
+            </div>
+            {% endfor %}
+        </div>
+        <div class="gut-preview">
+            <span>Prioridade calculada:</span>
+            <strong id="gut-preview-editar">1</strong>
+            <span id="gut-nivel-editar" class="badge badge-secondary">Baixa</span>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="fecharModal('modal-editar')">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+        </div>
+    </form>
+</div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Disponibiliza a data de hoje para o template verificar prazos vencidos
+const hoje = new Date().toISOString().split('T')[0];
+document.querySelectorAll('.prazo').forEach(el => {
+    if (el.dataset && el.textContent.trim() !== '—') {
+        // Comparação visual já feita via class no Jinja
+    }
+});
+
+async function solicitarCategoria() {
+    const nome = document.getElementById('nova-cat-nome').value.trim();
+    if (!nome) { alert('Informe o nome da categoria.'); return; }
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ url_for("nova_categoria") }}';
+    const input = document.createElement('input');
+    input.type = 'hidden'; input.name = 'nome'; input.value = nome;
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
+{% endblock %}
