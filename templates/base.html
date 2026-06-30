@@ -40,7 +40,6 @@
         <div class="sidebar-section">
             <h3 class="sidebar-section-title">📋 Atividades Recentes</h3>
             <div class="activity-list">
-                {% set atividades = atividades if atividades is defined else [] %}
                 {% if atividades %}
                     {% for a in atividades %}
                     <div class="activity-item">
