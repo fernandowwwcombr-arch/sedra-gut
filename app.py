@@ -296,6 +296,15 @@ def editar_tarefa(id):
             flash("Apenas administradores podem alterar o status da tarefa.", "warning")
             novo_status = tarefa.status
 
+        # guarda valores ANTES de sobrescrever
+        ant_titulo      = tarefa.titulo
+        ant_descricao   = tarefa.descricao
+        ant_responsavel = tarefa.responsavel
+        ant_categoria   = tarefa.categoria
+        ant_status      = tarefa.status
+        ant_prazo       = tarefa.prazo.strftime("%d/%m/%Y") if tarefa.prazo else "—"
+        ant_g, ant_u, ant_t = tarefa.gravidade, tarefa.urgencia, tarefa.tendencia
+
         tarefa.titulo      = request.form.get("titulo", tarefa.titulo).strip()
         tarefa.descricao   = request.form.get("descricao", "").strip()
         tarefa.responsavel = request.form.get("responsavel", "").strip()
@@ -321,9 +330,22 @@ def editar_tarefa(id):
 
         tarefa.prioridade    = tarefa.gravidade * tarefa.urgencia * tarefa.tendencia
         tarefa.atualizado_em = datetime.utcnow()
-        partes = [f'Status: {novo_status}'] if novo_status != tarefa.status else []
-        partes.append(f'GUT: {tarefa.gravidade}×{tarefa.urgencia}×{tarefa.tendencia} = {tarefa.prioridade}')
-        registrar_historico(tarefa.id, 'Tarefa editada — ' + ' | '.join(partes))
+
+        novo_prazo = tarefa.prazo.strftime("%d/%m/%Y") if tarefa.prazo else "—"
+        mudancas = []
+        if tarefa.titulo      != ant_titulo:      mudancas.append(f'Título: "{ant_titulo}" → "{tarefa.titulo}"')
+        if tarefa.descricao   != ant_descricao:   mudancas.append("Descrição alterada")
+        if tarefa.responsavel != ant_responsavel: mudancas.append(f'Responsável: {ant_responsavel or "—"} → {tarefa.responsavel or "—"}')
+        if tarefa.categoria   != ant_categoria:   mudancas.append(f'Categoria: {ant_categoria} → {tarefa.categoria}')
+        if tarefa.status      != ant_status:      mudancas.append(f'Status: {ant_status} → {tarefa.status}')
+        if novo_prazo         != ant_prazo:       mudancas.append(f'Prazo: {ant_prazo} → {novo_prazo}')
+        gut_ant = f'{ant_g}×{ant_u}×{ant_t}'
+        gut_nov = f'{tarefa.gravidade}×{tarefa.urgencia}×{tarefa.tendencia}'
+        if gut_nov != gut_ant:
+            mudancas.append(f'GUT: {gut_ant} → {gut_nov} = {tarefa.prioridade}')
+
+        msg_hist = ('Tarefa editada — ' + ' | '.join(mudancas)) if mudancas else 'Tarefa salva sem alterações'
+        registrar_historico(tarefa.id, msg_hist)
         db.session.commit()
         registrar_atividade(f'Tarefa editada: "{tarefa.titulo}"')
         flash("Tarefa atualizada!", "success")
