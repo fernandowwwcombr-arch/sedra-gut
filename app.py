@@ -594,19 +594,19 @@ def config_aparencia():
 
 
 # ── Inicialização ──────────────────────────────────────────────
+# Roda sempre (gunicorn + python app.py)
+with app.app_context():
+    db.create_all()
+    if Categoria.query.count() == 0:
+        for nome in ["Financeiro", "Fiscal", "Geral", "Operacional",
+                     "RH", "Comercial", "Jurídico"]:
+            db.session.add(Categoria(nome=nome, ativa=True,
+                                     criado_por="sistema"))
+        db.session.commit()
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-        # Categorias padrão (só cria se o banco estiver vazio)
-        if Categoria.query.count() == 0:
-            for nome in ["Financeiro", "Fiscal", "Geral", "Operacional",
-                         "RH", "Comercial", "Jurídico"]:
-                db.session.add(Categoria(nome=nome, ativa=True,
-                                         criado_por="sistema"))
-            db.session.commit()
-        print("=" * 50)
-        print("  SEDRA GUT — V1.0626")
-        print("  Acesse: http://localhost:5000")
-        print("=" * 50)
+    print("=" * 50)
+    print("  SEDRA GUT — V1.0626")
+    print("  Acesse: http://localhost:5000")
+    print("=" * 50)
     app.run(debug=True, host="0.0.0.0", port=5000)
