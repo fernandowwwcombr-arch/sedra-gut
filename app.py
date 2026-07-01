@@ -140,18 +140,6 @@ def index():
                     else url_for("login"))
 
 
-@app.route("/setup-admin-sedra2026")
-def setup_admin():
-    if Usuario.query.filter_by(email="fernando.www.com.br@gmail.com").first():
-        return "Usuário já existe."
-    from werkzeug.security import generate_password_hash
-    u = Usuario(nome="Fernando", email="fernando.www.com.br@gmail.com",
-                senha_hash=generate_password_hash("sedra2026"),
-                perfil="administrador", ativo=True)
-    db.session.add(u)
-    db.session.commit()
-    return "Usuário administrador criado com sucesso."
-
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
